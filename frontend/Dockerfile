@@ -1,5 +1,5 @@
 # Use Node.js base image
-FROM node:21-alpine
+FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
@@ -18,4 +18,4 @@ RUN npm run build
 EXPOSE 5173 
 
 # Run React app
-CMD ["npm", "run", "preview"] # Change if using `create-react-app` (serve -s build)
+CMD ["npm", "run", "dev"] # Change if using `create-react-app` (serve -s build)
