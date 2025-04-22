@@ -1,11 +1,7 @@
 *.jpg
 custom_vgg19_model.pth
 unet_model_medicoin_debjit_2.pth
+
 .venv
 
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.venv/
 .env
