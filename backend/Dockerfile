@@ -1,18 +1,15 @@
-# Use Python base image
 FROM python:3.12
 
-# Set working directory
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+RUN mkdir -p /root/.cache/torch/hub/checkpoints
+
+RUN curl -o /root/.cache/torch/hub/checkpoints/vgg19-dcbb9e9d.pth https://download.pytorch.org/models/vgg19-dcbb9e9d.pth
+
+COPY . /app
+
 WORKDIR /app
 
-# Copy and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv sync --frozen --no-cache
 
-# Copy the rest of the code
-COPY . .
-
-# Expose FastAPI port
-EXPOSE 5000
-
-# Run FastAPI app
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD [ "uv", "run", "app.py", "--port", "8000", "--host", "0.0.0.0" ]

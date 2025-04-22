@@ -72,7 +72,7 @@ function App() {
       formData.append("task", task);
 
       // Adjust the URL if your FastAPI server is hosted elsewhere.
-      const response = await fetch("http://localhost:5000/process/", {
+      const response = await fetch("http://localhost:8000/process/", {
         method: "POST",
         body: formData,
       });
