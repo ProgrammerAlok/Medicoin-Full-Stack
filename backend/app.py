@@ -12,6 +12,8 @@ from torchvision import transforms, models
 import matplotlib.pyplot as plt
 from PIL import Image
 
+from sqlmodel import Field, Session, SQLModel, create_engine, select
+
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
@@ -184,7 +186,11 @@ def class_predict(model, image_path):
         pred_class = 1 if prob > 0.5 else 0
     return prob, pred_class
 
-
+class Hero(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    age: int | None = Field(default=None, index=True)
+    secret_name: str
 
 app = FastAPI()
 
