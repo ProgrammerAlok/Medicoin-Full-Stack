@@ -1,6 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import shutil
 import uvicorn
 import os
@@ -195,6 +196,11 @@ async def lifespan(_: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(router, prefix="/api")
 
+# Serve static files (segmentation/classification images)
+STATIC_DIR = "static"
+os.makedirs(STATIC_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 # Allow CORS for all origins
 app.add_middleware(
@@ -205,42 +211,133 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import numpy as np
+from io import BytesIO
+import zipfile
+
+import pydicom
+from pydicom.errors import InvalidDicomError
+
+def dicom_to_png(dicom_path, png_path):
+    """Convert a DICOM file to a PNG image."""
+    ds = pydicom.dcmread(dicom_path)
+    arr = ds.pixel_array.astype(np.float32)
+    # Normalize to 0-255
+    arr -= arr.min()
+    arr /= arr.max() if arr.max() > 0 else 1
+    arr = (arr * 255).astype(np.uint8)
+    # Convert to RGB if needed
+    if len(arr.shape) == 2:
+        img = Image.fromarray(arr).convert("RGB")
+    else:
+        img = Image.fromarray(arr)
+    img.save(png_path)
+    return png_path
+
+def get_bounding_box(mask):
+    """Get bounding box (x_min, y_min, x_max, y_max) from a binary mask."""
+    mask = (mask > 0.5).astype(np.uint8)
+    coords = np.argwhere(mask)
+    if coords.size == 0:
+        return None
+    y_min, x_min = coords.min(axis=0)
+    y_max, x_max = coords.max(axis=0)
+    return x_min, y_min, x_max, y_max
+
+def draw_bounding_box(image, bbox, label=None, prob=None):
+    """Draw bounding box and optional label on a PIL image."""
+    from PIL import ImageDraw, ImageFont
+    draw = ImageDraw.Draw(image)
+    x_min, y_min, x_max, y_max = bbox
+    draw.rectangle([x_min, y_min, x_max, y_max], outline="red", width=3)
+    text = None
+    if label is not None and prob is not None:
+        text = f"{label} ({prob:.2f}%)"
+    elif label is not None:
+        text = label
+    if text:
+        try:
+            font = ImageFont.truetype("arial.ttf", 18)
+        except:
+            font = None
+        draw.text((x_min, y_min - 20), text, fill="red", font=font)
+    return image
+
 @app.post("/process/")
 async def process_image(
-    file: UploadFile = File(...),
-    task: str = Form(...)
+    file: UploadFile = File(...)
 ):
-    # Save the uploaded file temporarily
     temp_input_path = f"temp_{file.filename}"
     with open(temp_input_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    
+
+    # Detect DICOM and convert to PNG if needed
+    is_dicom = False
+    temp_png_path = None
     try:
-        if task.lower() == "segmentation":
-            # Run segmentation prediction
-            prediction, _ = seg_predict(seg_model, temp_input_path)
-            # Save the segmentation output image
-            output_path = f"seg_{file.filename}"
-            plt.imsave(output_path, prediction, cmap='gray')
-            # Remove the temporary input file
-            os.remove(temp_input_path)
-            return FileResponse(output_path, media_type="image/png", filename=f"seg_{file.filename}")
-        
-        elif task.lower() == "classification":
+        # Try reading as DICOM
+        try:
+            ds = pydicom.dcmread(temp_input_path)
+            is_dicom = True
+        except (InvalidDicomError, Exception):
+            is_dicom = False
+
+        if is_dicom:
+            temp_png_path = temp_input_path + ".png"
+            dicom_to_png(temp_input_path, temp_png_path)
+            image_path = temp_png_path
+        else:
+            image_path = temp_input_path
+
+        # Run segmentation prediction
+        prediction, orig_image = seg_predict(seg_model, image_path)
+        seg_filename = f"seg_{os.path.splitext(file.filename)[0]}.png"
+        seg_path = os.path.join(STATIC_DIR, seg_filename)
+        plt.imsave(seg_path, prediction, cmap='gray')
+
+        has_segment = bool((prediction > 0.5).sum() > 0)
+
+        response = {
+            "segmentation_mask_url": f"/static/{seg_filename}",
+            "has_segment": has_segment
+        }
+
+        if has_segment:
+            # Get bounding box from mask (rescale to original image size)
+            mask_resized = Image.fromarray((prediction * 255).astype(np.uint8)).resize(orig_image.size, resample=Image.NEAREST)
+            mask_np = np.array(mask_resized) / 255.0
+            bbox = get_bounding_box(mask_np)
+            if bbox:
+                # Draw bounding box on original image
+                boxed_image = orig_image.copy()
+                boxed_image = draw_bounding_box(boxed_image, bbox)
+                annotated_filename = f"annotated_{os.path.splitext(file.filename)[0]}.png"
+                annotated_path = os.path.join(STATIC_DIR, annotated_filename)
+                boxed_image.save(annotated_path)
+                response["annotated_image_url"] = f"/static/{annotated_filename}"
+            else:
+                annotated_path = None
+
             # Run classification prediction
-            prob, pred_class = class_predict(class_model, temp_input_path)
-            os.remove(temp_input_path)
+            prob, pred_class = class_predict(class_model, image_path)
             label = "Malignant" if pred_class == 1 else "Benign"
-            return JSONResponse(content={
+            response["classification"] = {
                 "prediction": label,
                 "probability": round(prob * 100, 2)
-            })
-        else:
+            }
+
+        # Clean up temp files
+        if os.path.exists(temp_input_path):
             os.remove(temp_input_path)
-            return JSONResponse(status_code=400, content={"message": "Invalid task type. Use 'segmentation' or 'classification'."})
+        if temp_png_path and os.path.exists(temp_png_path):
+            os.remove(temp_png_path)
+
+        return JSONResponse(content=response)
     except Exception as e:
         if os.path.exists(temp_input_path):
             os.remove(temp_input_path)
+        if temp_png_path and os.path.exists(temp_png_path):
+            os.remove(temp_png_path)
         return JSONResponse(status_code=500, content={"message": f"An error occurred: {str(e)}"})
 
 @app.get("/")

@@ -7,7 +7,7 @@ export default function MainLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen">
+    <div className="fixed inset-0 flex lg:flex-row flex-col bg-gray-200">
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 transform  ${
@@ -83,7 +83,7 @@ export default function MainLayout({ children }) {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="bg-gray-100 p-4 flex items-center gap-4 lg:hidden">
           <button
@@ -96,7 +96,7 @@ export default function MainLayout({ children }) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-6 bg-gray-100">{children}</main>
+        <main className="p-4 bg-gray-100">{children}</main>
       </div>
     </div>
   );
