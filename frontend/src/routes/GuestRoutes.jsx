@@ -9,7 +9,7 @@ export default function GuestRoutes({ children }) {
 
   useEffect(() => {
     if (user !== null && user !== undefined) {
-      navigate("/m", { replace: true });
+      navigate("/app/m", { replace: true });
     }
   }, [user, navigate]);
 

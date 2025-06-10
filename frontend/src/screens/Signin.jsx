@@ -1,77 +1,84 @@
 import React, { useCallback, useState } from "react";
 import { useAuth } from "../context/AuthProvider";
 import { useNavigate } from "react-router-dom";
+import { FiUser, FiLock } from "react-icons/fi";
 
 const Signin = () => {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false); // <-- Added loading state
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
-      setLoading(true); // Start loading
+      setLoading(true);
       try {
         const data = await signIn({ email, password });
         // @ts-ignore
         if (data?.success) {
-          navigate("/");
+          navigate("/app/m");
         }
       } catch (error) {
         console.error("Sign in error:", error);
       } finally {
-        setLoading(false); // Stop loading
+        setLoading(false);
       }
     },
     [email, navigate, password, signIn]
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-black flex flex-col">
       <div className="flex-grow flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
-          <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-            Sign In
+        <div className="bg-white/10 backdrop-blur-lg p-10 rounded-3xl shadow-2xl w-full max-w-md border border-white/10">
+          <h2 className="text-3xl font-extrabold text-center mb-8 text-white tracking-tight">
+            Sign In to MediCoin
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Email
               </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter your email"
-              />
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-white/10 rounded-xl bg-black text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/30 pl-10 transition-all"
+                  placeholder="Enter your email"
+                />
+                <FiUser className="absolute left-3 top-3 text-white/60" />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter your password"
-              />
+              <div className="relative">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-white/10 rounded-xl bg-black text-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-white/30 pl-10 transition-all"
+                  placeholder="Enter your password"
+                />
+                <FiLock className="absolute left-3 top-3 text-white/60" />
+              </div>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className={`w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-lg transition-colors ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700"
+              className={`w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-xl transition-all duration-300 text-lg font-bold shadow-xl hover:bg-black hover:text-white border border-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 ${
+                loading ? "opacity-70 cursor-not-allowed" : ""
               }`}
             >
               {loading && (
                 <svg
-                  className="animate-spin h-5 w-5 text-white"
+                  className="animate-spin h-5 w-5 text-black"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -94,11 +101,11 @@ const Signin = () => {
               {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
-          <p className="text-sm text-gray-500 text-center mt-4">
+          <p className="text-sm text-gray-400 text-center mt-6">
             Don't have an account?{" "}
             <span
               onClick={() => navigate("/signup")}
-              className="text-blue-600 hover:underline cursor-pointer"
+              className="text-white hover:underline cursor-pointer transition-colors"
             >
               Sign Up
             </span>

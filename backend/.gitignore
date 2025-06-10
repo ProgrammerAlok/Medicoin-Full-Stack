@@ -1,13 +1,17 @@
-*.jpg
-custom_vgg19_model.pth
-unet_model_medicoin_debjit_2.pth
-__pycache__
-
-.venv
-
-.env
-# *.db
-static/*.jpeg
+*.pth
 static/*.png
 static/*.jpg
-static/*.gif
+static/*.jpeg
+
+uploads/*.png
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.gif
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+# Ignore virtual environment directories
+venv
+.venv
